@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "convention": "T_parent_child maps child points into parent",
+  "robot_base_frame": "base_link_kinematic_gauge",
+  "frame_status": "unanchored_kinematic_gauge",
+  "robot_tool_frame": "gripper_frame_link",
+  "camera_frame": "wrist_camera",
+  "joint_offsets_deg": {
+    "arm_shoulder_pan": 0.0,
+    "arm_shoulder_lift": -0.6404709879472134,
+    "arm_elbow_flex": 13.311538243373542,
+    "arm_wrist_flex": 1.3605243615389155,
+    "arm_wrist_roll": 0.0
+  },
+  "T_gripper_camera": [
+    [-0.021008505186433796, 0.859537681349181, -0.5106403989606632, 0.0963883281747663],
+    [0.9997682466029146, 0.020462772944361635, -0.006687900115950052, -0.0018787344983429404],
+    [0.004700616381391687, -0.5106625590977873, -0.8597683728431359, 0.0045754905662351835],
+    [0.0, 0.0, 0.0, 1.0]
+  ],
+  "warning": "Internally consistent, but base-frame yaw and gripper roll are not physically registered."
+}

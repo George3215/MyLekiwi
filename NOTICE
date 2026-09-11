@@ -1,0 +1,7 @@
+MyLekiwi includes an SO-101 kinematic URDF derived from the LeRobot project.
+LeRobot is Copyright 2024 The Hugging Face team and is licensed under the
+Apache License, Version 2.0.
+
+AnyGrasp itself, its SDK, binary extension, model checkpoint and license files
+are not part of this repository. Users must obtain and use those assets under
+their applicable terms.

@@ -1,0 +1,75 @@
+# Current lab-unit profile. Recalibrate before using these values on another robot.
+robot:
+  port: /dev/ttyACM0
+  wrist_camera: /dev/video0
+  camera_width: 1280
+  camera_height: 720
+  camera_flush_frames: 8
+  observation_joint_deg: [0.0, 0.0, 10.0, 92.0, 0.0]
+  capture_pose_tolerance_deg: 8.0
+  gripper_open: 80.0
+  gripper_open_min: 75.0
+  gripper_close: 0.0
+
+paths:
+  calibration: configs/calibration/lab_unit/motors.json
+  intrinsics: configs/calibration/lab_unit/wrist_intrinsics.json
+  handeye: configs/calibration/lab_unit/handeye.json
+  depth_calibration: configs/calibration/lab_unit/depth_affine.json
+  floor_baseline: configs/calibration/lab_unit/floor_baseline.json
+  urdf: robot/so101_kin_only.urdf
+  gripper_hull: robot/gripper_collision_hull.npz
+  capture: outputs/captures/latest/wrist.png
+  plans: outputs/plans
+  dino: models/grounding-dino-tiny
+  depth: models/Depth-Anything-V2-Small-hf
+  sam2: models/sam2-hiera-small
+  anygrasp_worker: integrations/anygrasp_worker.py
+
+perception:
+  prompt: black object.
+  box_threshold: 0.30
+  text_threshold: 0.25
+  depth_min_m: 0.08
+  depth_max_m: 1.20
+  depth_rmse_max_m: 0.015
+  depth_error_max_m: 0.025
+
+anygrasp:
+  top_k: 20
+  max_width_m: 0.085
+  table_depth_margin_m: 0.001
+
+grasp:
+  table_z_m: -0.113
+  tcp_height_m: 0.030
+  x_offset_m: 0.030  # temporary Base-X offset for above/down only
+  y_offset_m: 0.050  # down->grasp cancels this offset back to the center
+  approach_clearance_m: 0.060
+  yaw_step_deg: 10
+  lift_m: 0.060
+  ik_iterations: 30
+  orientation_weight: 0.005
+  position_error_mm: 5.0
+  approach_error_deg: 10.0
+  jaw_error_deg: 10.0
+  wrist_roll_limit_deg: 60.0
+  max_joint_move_deg: 60.0
+  floor_margin_m: 0.006
+  floor_path_reserve_m: 0.005
+  joint_min_deg: [-109.5, -99.5, -96.3, -94.5, -150.0]
+  joint_max_deg: [109.5, 99.5, 96.3, 94.5, 150.0]
+
+execution:
+  arm_speed_raw: 20
+  dwell_s: 1.0
+  observation_tolerance_deg: 5.0
+  settle_tolerance_deg: 5.0
+  grasp_tolerance_deg: 5.0
+  gripper_tolerance: 5.0
+  settle_timeout_s: 30.0
+  runtime_floor_reserve_m: 0.002
+  temperature_limit_c: 55
+  repose_step_deg: 5.0
+  repose_step_interval_s: 0.35
+  repose_tracking_tolerance_deg: 15.0

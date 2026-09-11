@@ -1,0 +1,9 @@
+{
+  "model": "depth-anything-v2-relative-affine",
+  "A": -0.06720664174235194,
+  "B": 0.5486994439791392,
+  "inlier_count": 791,
+  "total_count": 909,
+  "rmse_m": 0.008358538729882228,
+  "max_abs_error_m": 0.019933801371349313
+}

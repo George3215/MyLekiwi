@@ -1,0 +1,30 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+
+# Models, proprietary AnyGrasp assets and runtime data are never committed.
+models
+anygrasp_sdk/
+outputs
+captures/
+plans/
+logs/
+*.lic
+*.so
+*.pth
+*.pt
+*.tar
+*.safetensors
+*.bin
+*.png
+*.jpg
+*.jpeg
+*.npy
+*.jsonl
+
+# Editors and OS files.
+.vscode/
+.idea/
+.DS_Store
+.TimeRecord
