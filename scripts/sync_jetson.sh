@@ -8,8 +8,11 @@ SOCKET="/tmp/mylekiwi-ssh-%r@%h:%p"
 SSH=(-o ControlMaster=auto -o ControlPersist=60 -o ControlPath="$SOCKET")
 
 env -u LD_LIBRARY_PATH /usr/bin/ssh "${SSH[@]}" "$MYLEKIWI_JETSON" \
-  "mkdir -p '$REMOTE_ROOT'"
+  "mkdir -p '$REMOTE_ROOT/mylekiwi'"
+env -u LD_LIBRARY_PATH /usr/bin/scp "${SSH[@]}" \
+  "$ROOT"/mylekiwi/*.py \
+  "$MYLEKIWI_JETSON:$REMOTE_ROOT/mylekiwi/"
 env -u LD_LIBRARY_PATH /usr/bin/scp -r "${SSH[@]}" \
-  "$ROOT/mylekiwi" "$ROOT/configs" "$ROOT/robot" \
+  "$ROOT/configs" "$ROOT/robot" \
   "$MYLEKIWI_JETSON:$REMOTE_ROOT/"
 echo "Jetson code synced to $REMOTE_ROOT"
