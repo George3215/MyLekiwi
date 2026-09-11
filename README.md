@@ -90,6 +90,7 @@ robot/so101_kin_only.urdf                   SO-101 运动学模型
 robot/gripper_collision_hull.npz            夹爪碰撞包络
 scripts/sync_jetson.sh                      一次性同步代码与配置
 scripts/run_grasp_pipeline.sh               一帧 PNG -> 一个 plan.json
+scripts/jetson_python.sh                    强制优先加载仓库内 LeRobot 的 Jetson 入口
 third_party/lerobot/                        固定版本的完整 LeRobot 源码仓库快照
 third_party/lerobot/src/lerobot/robots/lekiwi/  LeKiwi 驱动
 third_party/lerobot/src/lerobot/motors/feetech/ 飞特舵机底层
@@ -168,7 +169,7 @@ Jetson 不需要下载任何感知模型，也不需要安装 AnyGrasp。Jetson 
 - 飞特舵机总线，默认 `/dev/ttyACM0`；
 - 4090 可以通过 SSH 登录的用户账号。
 
-推荐在 Jetson 的仓库目录创建独立环境：
+全新 Jetson 可以在仓库目录创建独立环境：
 
 ```bash
 cd ~/MyLekiwi
@@ -179,17 +180,17 @@ uv sync --extra jetson
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -c 'import pathlib, lerobot; from lerobot.motors.feetech import FeetechMotorsBus; print(pathlib.Path(lerobot.__file__).resolve())'
+./scripts/jetson_python.sh -c 'import pathlib, lerobot; from lerobot.motors.feetech import FeetechMotorsBus; print(pathlib.Path(lerobot.__file__).resolve())'
 ```
 
-若 Jetson 暂时复用 `~/lerobot/.venv`，所有命令都应加上 vendored source，防止加载旧驱动：
+如果当前 Jetson 已有可连接真机的 `~/lerobot/.venv`，`jetson_python.sh` 会自动复用它，同时强制把仓库内 vendored LeRobot 放在导入路径最前面，避免加载旧驱动：
 
 ```bash
 cd ~/MyLekiwi
-PYTHONPATH=$PWD/third_party/lerobot/src ../lerobot/.venv/bin/python -c 'import pathlib, lerobot; print(pathlib.Path(lerobot.__file__).resolve())'
+./scripts/jetson_python.sh -c 'import pathlib, lerobot; print(pathlib.Path(lerobot.__file__).resolve())'
 ```
 
-并在 4090 运行管线前设置 `MYLEKIWI_JETSON_PYTHON=../lerobot/.venv/bin/python`。默认则使用 Jetson 的 `~/MyLekiwi/.venv/bin/python`。
+如 Python 在其他位置，设置 `MYLEKIWI_JETSON_PYTHON=/absolute/path/to/python`。注意：JetPack/CUDA 对 PyTorch wheel 有平台约束；`uv sync --extra jetson` 已完成依赖锁解析，但当前真机已验证的是复用已有 Jetson 环境并由此脚本覆盖 LeRobot 源码的路径。
 
 ## 当前样机标定
 
@@ -237,14 +238,14 @@ third_party/lerobot/{pyproject.toml,README.md,LICENSE,VENDORED_VERSION.md}
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -m mylekiwi.return_to_observation --read-only
+./scripts/jetson_python.sh -m mylekiwi.return_to_observation --read-only
 ```
 
 确认当前路径、关节范围和 tool-Z 检查通过后，仍在 **Jetson** 执行复位：
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -m mylekiwi.return_to_observation --execute
+./scripts/jetson_python.sh -m mylekiwi.return_to_observation --execute
 ```
 
 该动作把机械臂移动到配置中的观察姿态，并把夹爪打开到 80%。
@@ -298,7 +299,7 @@ outputs/plans/latest/pipeline.png
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -m mylekiwi.execute_grasp --read-only --allow-low-score
+./scripts/jetson_python.sh -m mylekiwi.execute_grasp --read-only --allow-low-score
 ```
 
 `READ_ONLY_OK` 只说明计划格式、当前观察姿态、关节范围和 floor guard 等只读条件通过，不代表已经抓取成功。
@@ -309,7 +310,7 @@ cd ~/MyLekiwi
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -m mylekiwi.execute_grasp --execute --allow-low-score
+./scripts/jetson_python.sh -m mylekiwi.execute_grasp --execute --allow-low-score
 ```
 
 只有这一步和第 1 步的复位 `--execute` 会写舵机。4090 上的规划命令不会直接写电机。
@@ -320,14 +321,14 @@ cd ~/MyLekiwi
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -m mylekiwi.execute_grasp --read-only --resume-grasp --allow-low-score
+./scripts/jetson_python.sh -m mylekiwi.execute_grasp --read-only --resume-grasp --allow-low-score
 ```
 
 确认后才在 Jetson 运行：
 
 ```bash
 cd ~/MyLekiwi
-.venv/bin/python -m mylekiwi.execute_grasp --execute --resume-grasp --allow-low-score
+./scripts/jetson_python.sh -m mylekiwi.execute_grasp --execute --resume-grasp --allow-low-score
 ```
 
 恢复模式只继续执行：闭夹爪、停留、抬升、返回观察姿态、打开夹爪。
