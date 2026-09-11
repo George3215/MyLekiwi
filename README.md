@@ -2,6 +2,8 @@
 
 MyLekiwi 是一套面向 LeKiwi / SO-101 的单帧桌面抓取闭环。Jetson 只负责腕相机采集与飞特舵机执行，RTX 4090 负责 GroundingDINO、SAM 2、Depth Anything V2、AnyGrasp、手眼变换和 LeRobot IK。
 
+仓库内的 [`third_party/lerobot`](third_party/lerobot) 是固定 commit 的完整 LeRobot 上游源码快照，不再依赖一份版本可能漂移的外部 LeRobot 安装。该快照还包含当前实体 LeKiwi 使用的 Feetech Protocol-1 补丁；确切上游版本和三个补丁文件记录在 [`VENDORED_VERSION.md`](third_party/lerobot/VENDORED_VERSION.md)。
+
 当前默认提示词是 `black object.`。机械臂到达观察姿态后只拍一帧；开始运动后不会再次观察或重新规划。
 
 ## 两台机器如何分工
@@ -16,9 +18,11 @@ MyLekiwi 不是把所有程序都放在同一台机器上运行，而是明确�
 推荐目录如下：
 
 ```text
-4090:   ~/MyLekiwi                 # 完整仓库、模型、AnyGrasp、可视化和计划
-Jetson: ~/MyLekiwi                 # 仅运行时源码、配置、URDF 和碰撞 hull
-Jetson: ~/lerobot/.venv/bin/python # 已安装 LeRobot + Feetech 的 Python
+4090:   ~/MyLekiwi                         # 完整仓库、模型、AnyGrasp、可视化和计划
+4090:   ~/MyLekiwi/.venv/bin/python        # planner 环境
+Jetson: ~/MyLekiwi                         # 运行时源码、配置、URDF、hull 和固定 LeRobot
+Jetson: ~/MyLekiwi/.venv/bin/python        # 推荐的独立 jetson 环境
+# 或临时复用 Jetson 已有的 ~/lerobot/.venv/bin/python
 ```
 
 一次性部署时，4090 会向 Jetson 同步运行时代码和配置。每次抓取时只交换两个运行数据文件：
@@ -86,7 +90,12 @@ robot/so101_kin_only.urdf                   SO-101 运动学模型
 robot/gripper_collision_hull.npz            夹爪碰撞包络
 scripts/sync_jetson.sh                      一次性同步代码与配置
 scripts/run_grasp_pipeline.sh               一帧 PNG -> 一个 plan.json
+third_party/lerobot/                        固定版本的完整 LeRobot 源码仓库快照
+third_party/lerobot/src/lerobot/robots/lekiwi/  LeKiwi 驱动
+third_party/lerobot/src/lerobot/motors/feetech/ 飞特舵机底层
 ```
+
+`third_party/lerobot` 保留上游 `src`、`tests`、`docs`、`examples`、构建文件和许可证，因此可以直接查看和调试 LeRobot/LeKiwi 底层，而不是只得到本项目的薄封装。公开仓库不包含本机父仓库里的 XVLA 缓存、实验 scratch、私人照片或未授权二进制。
 
 ## 4090 环境准备
 
@@ -100,15 +109,25 @@ scripts/run_grasp_pipeline.sh               一帧 PNG -> 一个 plan.json
 - 单独获得许可的 AnyGrasp SDK、checkpoint 和专用 Python 环境；
 - 能通过 SSH 登录 Jetson。
 
-全新安装可以在 4090 上运行：
+全新安装可以在 4090 上运行。`planner` extra 会从本仓库的 `third_party/lerobot` 安装 LeRobot 和运动学依赖：
 
 ```bash
 git clone https://github.com/George3215/MyLekiwi.git
 cd MyLekiwi
-uv sync
+uv sync --extra planner
 ```
 
-如果已有 LeRobot 环境，也可以不新建 MyLekiwi `.venv`，运行闭环时通过 `MYLEKIWI_PYTHON=/path/to/lerobot/.venv/bin/python` 指定解释器。
+检查实际导入的是仓库内版本：
+
+```bash
+uv run --extra planner python -c 'import pathlib, lerobot; print(pathlib.Path(lerobot.__file__).resolve())'
+```
+
+输出路径应位于 `MyLekiwi/third_party/lerobot/src/lerobot/`。如果需要临时复用已有 Python，也必须把本仓库源码置于最前面：
+
+```bash
+PYTHONPATH=$PWD/third_party/lerobot/src MYLEKIWI_PYTHON=/path/to/python ./scripts/run_grasp_pipeline.sh
+```
 
 三套 Hugging Face 模型只下载到 4090，而且只需下载一次：
 
@@ -144,29 +163,33 @@ $ANYGRASP_PYTHON -c 'import torch; print("AnyGrasp CUDA:", torch.cuda.is_availab
 Jetson 不需要下载任何感知模型，也不需要安装 AnyGrasp。Jetson 只需要：
 
 - Python 3.12；
-- 已安装 `feetech` 支持的 LeRobot 环境；
+- 从本仓库安装 `feetech` 支持，或临时复用已有 Python 环境；
 - 腕相机；
 - 飞特舵机总线，默认 `/dev/ttyACM0`；
 - 4090 可以通过 SSH 登录的用户账号。
 
-本仓库默认假设 Jetson 已有：
-
-```text
-~/lerobot/.venv/bin/python
-```
-
-可以先在 Jetson 检查依赖，但不要连接或移动机械臂：
+推荐在 Jetson 的仓库目录创建独立环境：
 
 ```bash
-cd ~/lerobot
-.venv/bin/python -c 'from lerobot.motors.feetech import FeetechMotorsBus; print("Jetson LeRobot/Feetech OK")'
+cd ~/MyLekiwi
+uv sync --extra jetson
 ```
 
-如果 Jetson 的 Python 不在默认位置，运行 4090 脚本时设置：
+检查导入路径，但不要连接或移动机械臂：
 
 ```bash
-export MYLEKIWI_JETSON_PYTHON=/absolute/path/to/python
+cd ~/MyLekiwi
+.venv/bin/python -c 'import pathlib, lerobot; from lerobot.motors.feetech import FeetechMotorsBus; print(pathlib.Path(lerobot.__file__).resolve())'
 ```
+
+若 Jetson 暂时复用 `~/lerobot/.venv`，所有命令都应加上 vendored source，防止加载旧驱动：
+
+```bash
+cd ~/MyLekiwi
+PYTHONPATH=$PWD/third_party/lerobot/src ../lerobot/.venv/bin/python -c 'import pathlib, lerobot; print(pathlib.Path(lerobot.__file__).resolve())'
+```
+
+并在 4090 运行管线前设置 `MYLEKIWI_JETSON_PYTHON=../lerobot/.venv/bin/python`。默认则使用 Jetson 的 `~/MyLekiwi/.venv/bin/python`。
 
 ## 当前样机标定
 
@@ -197,6 +220,9 @@ MYLEKIWI_JETSON=user@jetson-ip ./scripts/sync_jetson.sh
 mylekiwi/*.py
 configs/
 robot/
+scripts/
+third_party/lerobot/src/lerobot/
+third_party/lerobot/{pyproject.toml,README.md,LICENSE,VENDORED_VERSION.md}
 ```
 
 它不会复制 4090 模型、AnyGrasp SDK、照片、旧计划或日志。源码更新后重新运行该命令即可。
@@ -211,14 +237,14 @@ robot/
 
 ```bash
 cd ~/MyLekiwi
-../lerobot/.venv/bin/python -m mylekiwi.return_to_observation --read-only
+.venv/bin/python -m mylekiwi.return_to_observation --read-only
 ```
 
 确认当前路径、关节范围和 tool-Z 检查通过后，仍在 **Jetson** 执行复位：
 
 ```bash
 cd ~/MyLekiwi
-../lerobot/.venv/bin/python -m mylekiwi.return_to_observation --execute
+.venv/bin/python -m mylekiwi.return_to_observation --execute
 ```
 
 该动作把机械臂移动到配置中的观察姿态，并把夹爪打开到 80%。
@@ -272,7 +298,7 @@ outputs/plans/latest/pipeline.png
 
 ```bash
 cd ~/MyLekiwi
-../lerobot/.venv/bin/python -m mylekiwi.execute_grasp --read-only --allow-low-score
+.venv/bin/python -m mylekiwi.execute_grasp --read-only --allow-low-score
 ```
 
 `READ_ONLY_OK` 只说明计划格式、当前观察姿态、关节范围和 floor guard 等只读条件通过，不代表已经抓取成功。
@@ -283,7 +309,7 @@ cd ~/MyLekiwi
 
 ```bash
 cd ~/MyLekiwi
-../lerobot/.venv/bin/python -m mylekiwi.execute_grasp --execute --allow-low-score
+.venv/bin/python -m mylekiwi.execute_grasp --execute --allow-low-score
 ```
 
 只有这一步和第 1 步的复位 `--execute` 会写舵机。4090 上的规划命令不会直接写电机。
@@ -294,14 +320,14 @@ cd ~/MyLekiwi
 
 ```bash
 cd ~/MyLekiwi
-../lerobot/.venv/bin/python -m mylekiwi.execute_grasp --read-only --resume-grasp --allow-low-score
+.venv/bin/python -m mylekiwi.execute_grasp --read-only --resume-grasp --allow-low-score
 ```
 
 确认后才在 Jetson 运行：
 
 ```bash
 cd ~/MyLekiwi
-../lerobot/.venv/bin/python -m mylekiwi.execute_grasp --execute --resume-grasp --allow-low-score
+.venv/bin/python -m mylekiwi.execute_grasp --execute --resume-grasp --allow-low-score
 ```
 
 恢复模式只继续执行：闭夹爪、停留、抬升、返回观察姿态、打开夹爪。

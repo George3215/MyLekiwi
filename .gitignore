@@ -28,3 +28,9 @@ logs/
 .idea/
 .DS_Store
 .TimeRecord
+
+# Keep the pinned upstream LeRobot source snapshot complete. Runtime/model
+# ignore rules above apply to MyLekiwi itself, not to vendored upstream files.
+!third_party/
+!third_party/lerobot/
+!third_party/lerobot/**

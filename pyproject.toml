@@ -11,15 +11,25 @@ requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
   "draccus>=0.11.6,<0.12",
-  "lerobot[feetech,placo-dep]>=0.6.2,<0.7",
+  "lerobot==0.6.2",
   "numpy>=2.0,<2.3",
   "opencv-python-headless>=4.9,<4.14",
   "Pillow>=10,<13",
   "PyYAML>=6,<7",
   "scipy>=1.13,<2",
-  "torch>=2.7,<2.12",
+]
+
+[project.optional-dependencies]
+planner = [
+  "lerobot[kinematics]",
   "transformers>=5.4,<5.6",
 ]
+jetson = [
+  "lerobot[feetech]",
+]
+
+[tool.uv.sources]
+lerobot = { path = "third_party/lerobot", editable = true }
 
 [tool.setuptools.packages.find]
 include = ["mylekiwi*"]
